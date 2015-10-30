@@ -65,6 +65,7 @@ float fir_buffer_mono[FIR_SIZE] = {0};
 float fir_buffer_stereo[FIR_SIZE] = {0};
 int fir_index = 0;
 int channels;
+int is_pipe = 0;
 
 SNDFILE *inf;
 
@@ -80,20 +81,33 @@ float *alloc_empty_buffer(size_t length) {
 }
 
 
-int fm_mpx_open(char *filename, size_t len) {
+int fm_mpx_open(char *filename, size_t len, uint32_t raw, uint32_t sample_rate, uint32_t num_channels) {
     length = len;
 
     if(filename != NULL) {
         // Open the input file
         SF_INFO sfinfo;
+        if (raw) {
+            sfinfo.format = SF_FORMAT_RAW | SF_FORMAT_PCM_16;
+            sfinfo.samplerate = sample_rate;
+            sfinfo.channels = num_channels;
+        }
  
         // stdin or file on the filesystem?
         if(filename[0] == '-') {
+            fprintf(stderr, "stdin: %d\n", fileno(stdin));
             if(! (inf = sf_open_fd(fileno(stdin), SFM_READ, &sfinfo, 0))) {
                 fprintf(stderr, "Error: could not open stdin for audio input.\n") ;
+                int err = sf_error(NULL);
+                const char * errstr = sf_error_number(err);
+                char  buffer [2048] ;
+                sf_command (NULL, SFC_GET_LOG_INFO, buffer, sizeof (buffer)) ;
+                fprintf(stderr, "Err: %d %s\n", err, errstr);
+                fprintf(stderr, buffer);
                 return -1;
             } else {
                 printf("Using stdin for audio input.\n");
+                is_pipe = 1;
             }
         } else {
             if(! (inf = sf_open(filename, SFM_READ, &sfinfo))) {
@@ -176,6 +190,10 @@ int fm_mpx_get_samples(float *mpx_buffer) {
                         return -1;
                     }
                     if(audio_len == 0) {
+                        if (is_pipe) {
+                            printf("Reached end of pipe, terminating...\n");
+                            return -1;
+                        }
                         if( sf_seek(inf, 0, SEEK_SET) < 0 ) {
                             fprintf(stderr, "Could not rewind in audio file, terminating\n");
                             return -1;

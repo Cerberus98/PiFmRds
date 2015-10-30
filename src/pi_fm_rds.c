@@ -311,7 +311,8 @@ map_peripheral(uint32_t base, uint32_t len)
 #define DATA_SIZE 5000
 
 
-int tx(uint32_t carrier_freq, char *audio_file, uint16_t pi, char *ps, char *rt, float ppm, char *control_pipe) {
+int tx(uint32_t carrier_freq, char *audio_file, uint16_t pi, char *ps, char *rt, float ppm, char *control_pipe, int raw,
+       uint32_t sample_rate, uint32_t num_channels) {
     // Catch all signals possible - it is vital we kill the DMA engine
     // on process exit!
     for (int i = 0; i < 64; i++) {
@@ -446,7 +447,7 @@ int tx(uint32_t carrier_freq, char *audio_file, uint16_t pi, char *ps, char *rt,
     int data_index = 0;
 
     // Initialize the baseband generator
-    if(fm_mpx_open(audio_file, DATA_SIZE) < 0) return 1;
+    if(fm_mpx_open(audio_file, DATA_SIZE, raw, sample_rate, num_channels) < 0) return 1;
     
     // Initialize the RDS modulator
     char myps[9] = {0};
@@ -546,6 +547,9 @@ int main(int argc, char **argv) {
     char *rt = "PiFmRds: live FM-RDS transmission from the RaspberryPi";
     uint16_t pi = 0x1234;
     float ppm = 0;
+    uint32_t raw = 0;
+    uint32_t sample_rate = 44100;
+    uint32_t num_channels = 2;
     
     
     // Parse command-line arguments
@@ -578,14 +582,24 @@ int main(int argc, char **argv) {
         } else if(strcmp("-ctl", arg)==0 && param != NULL) {
             i++;
             control_pipe = param;
+        } else if (strcmp("-raw", arg)==0) {
+            raw = 1;
+        } else if (strcmp("-samplerate", arg)==0 && param != NULL) {
+            i++;
+            sample_rate = atoi(param);
+        } else if (strcmp("-numchannels", arg)==0 && param != NULL) {
+            i++;
+            num_channels = atoi(param);
         } else {
             fatal("Unrecognised argument: %s.\n"
             "Syntax: pi_fm_rds [-freq freq] [-audio file] [-ppm ppm_error] [-pi pi_code]\n"
-            "                  [-ps ps_text] [-rt rt_text] [-ctl control_pipe]\n", arg);
+            "                  [-ps ps_text] [-rt rt_text] [-ctl control_pipe] [-raw]\n"
+            "                  [-samplerate sample_rate] [-numchannels num_channels]\n\n"
+            "                  -samplerate and -numchannels only valid with -raw\n", arg);
         }
     }
     
-    int errcode = tx(carrier_freq, audio_file, pi, ps, rt, ppm, control_pipe);
+    int errcode = tx(carrier_freq, audio_file, pi, ps, rt, ppm, control_pipe, raw, sample_rate, num_channels);
     
     terminate(errcode);
 }

@@ -21,6 +21,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-extern int fm_mpx_open(char *filename, size_t len);
+extern int fm_mpx_open(char *filename, size_t len, uint32_t raw, uint32_t sample_rate, uint32_t num_channels);
 extern int fm_mpx_get_samples(float *mpx_buffer);
 extern int fm_mpx_close();
