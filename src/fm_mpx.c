@@ -45,6 +45,7 @@ size_t length;
 float low_pass_fir[FIR_HALF_SIZE];
 
 
+// samples and 2x samples at 30 degree intervals -> sin(30 * i * math.pi / 180)
 float carrier_38[] = {0.0, 0.8660254037844386, 0.8660254037844388, 1.2246467991473532e-16, -0.8660254037844384, -0.8660254037844386};
 
 float carrier_19[] = {0.0, 0.5, 0.8660254037844386, 1.0, 0.8660254037844388, 0.5, 1.2246467991473532e-16, -0.5, -0.8660254037844384, -1.0, -0.8660254037844386, -0.5};
@@ -117,7 +118,7 @@ int fm_mpx_open(char *filename, size_t len, uint32_t raw, uint32_t sample_rate, 
                 printf("Using audio file: %s\n", filename);
             }
         }
-            
+
         int in_samplerate = sfinfo.samplerate;
         downsample_factor = 228000. / in_samplerate;
     
@@ -249,15 +250,25 @@ int fm_mpx_get_samples(float *mpx_buffer) {
         }
         // End of FIR filter
         
-
+        //4.05 on each channel because we're mixing in both channels, for a total
+        //of 81% of the signal (because everything emitted by this function is divided
+        //by 10 later, so really they're .405, .405 and 0.09!
+        //
+        //We're still missing 10%, but at least that's covered
+        //NOTE(mdietz): changes to 4.15 per and 1.7 to encompass the whole 100%...
         mpx_buffer[i] = 
             mpx_buffer[i] +    // RDS data samples are currently in mpx_buffer
-            4.05*out_mono;     // Unmodulated monophonic (or stereo-sum) signal
+            4.15*out_mono;     // Unmodulated monophonic (or stereo-sum) signal
             
         if(channels>1) {
             mpx_buffer[i] +=
-                4.05 * carrier_38[phase_38] * out_stereo + // Stereo difference signal
-                .9*carrier_19[phase_19];                  // Stereo pilot tone
+                // Referencing https://en.wikipedia.org/wiki/FM_broadcasting#Stereo_FM
+                // this is the 0.9 * (...) portion. carrier_38 is the pre-cached value for the sin(4*pi*fp*t)
+                // As above, we've separated out the mono portion (A+B) / 2 and always apply it, and conditionally
+                // apply the other "half" (A-B) / 2
+                4.15 * carrier_38[phase_38] * out_stereo + // Stereo difference signal
+                // this is the 0.1 * sin(2*pi*fp*t) portion, also pre-cached. Actual scalar may differ from the formula
+                1.7*carrier_19[phase_19];                  // Stereo pilot tone
 
             phase_19++;
             phase_38++;
