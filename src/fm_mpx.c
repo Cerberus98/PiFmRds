@@ -133,7 +133,7 @@ int fm_mpx_open(char *filename, size_t len, uint32_t raw, uint32_t sample_rate, 
     
     
         // Create the low-pass FIR filter
-        float cutoff_freq = 15000 * .8;
+        float cutoff_freq = 20000 * .8;
         if(in_samplerate/2 < cutoff_freq) cutoff_freq = in_samplerate/2 * .8;
     
     
@@ -258,7 +258,7 @@ int fm_mpx_get_samples(float *mpx_buffer) {
         //NOTE(mdietz): changes to 4.15 per and 1.7 to encompass the whole 100%...
         mpx_buffer[i] = 
             mpx_buffer[i] +    // RDS data samples are currently in mpx_buffer
-            4.15*out_mono;     // Unmodulated monophonic (or stereo-sum) signal
+            3.9*out_mono;     // Unmodulated monophonic (or stereo-sum) signal
             
         if(channels>1) {
             mpx_buffer[i] +=
@@ -266,9 +266,8 @@ int fm_mpx_get_samples(float *mpx_buffer) {
                 // this is the 0.9 * (...) portion. carrier_38 is the pre-cached value for the sin(4*pi*fp*t)
                 // As above, we've separated out the mono portion (A+B) / 2 and always apply it, and conditionally
                 // apply the other "half" (A-B) / 2
-                4.15 * carrier_38[phase_38] * out_stereo + // Stereo difference signal
-                // this is the 0.1 * sin(2*pi*fp*t) portion, also pre-cached. Actual scalar may differ from the formula
-                1.7*carrier_19[phase_19];                  // Stereo pilot tone
+                3.9 * carrier_38[phase_38] * out_stereo + // Stereo difference signal
+                1.3*carrier_19[phase_19];                  // Stereo pilot tone
 
             phase_19++;
             phase_38++;
